@@ -1,27 +1,42 @@
 import sys, os, operator, subprocess
 from glob import glob
 
+USE_COLUMNAR = True
+
 try:
     from columnar import columnar
 except ImportError:
     subprocess.run([sys.executable, '-m', 'pip', 'install', 'columnar'])
-    from columnar import columnar
+    try:
+      from columnar import columnar
+    except ImportError:
+      USE_COLUMNAR = False
 
 def main() -> bool:
     print('start script...')
 
     files = []
     patterns = ['*.cpp', '*.h', '*.hpp', 'CmakeLists.txt']
+   
+    exclude_patterns = []
+    if os.name == 'nt':
+        exclude_patterns = [
+            'Physics\\libs', 'EvoVulkan\\Depends', 
+            'libs\\freetype', 'libs\\FbxLoader', 'libs\\cmp_core', 'libs\\glew',
+            'libs\\glfw', 'Audio\\libs', 'Utils\\libs', 'libs\\harfbuzz',
+            'libs\\imgui', 'libs\\imgui-node-editor', 'libs\\ImGuizmo', 'libs\\inc', 
+            'EvoVulkan\\Core\\libs'
+        ]
+    else:
+        exclude_patterns = [
+            'Physics/libs', 'EvoVulkan/Depends', 
+            'libs/freetype', 'libs/FbxLoader', 'libs/cmp_core', 'libs/glew', 
+            'libs/glfw', 'Audio/libs', 'Utils/libs', 'libs/harfbuzz',
+            'libs/imgui', 'libs/imgui-node-editor', 'libs/ImGuizmo', 'libs/inc', 
+            'EvoVulkan/Core/libs'
+        ]
     
-    exclude_patterns = [
-        'Physics\\libs', 'EvoVulkan\\Depends', 
-        'libs\\freetype', 'libs\\FbxLoader', 'libs\\cmp_core', 'libs\\glew', 
-        'libs\\glfw', 'Audio\\libs', 'Utils\\libs', 'libs\\harfbuzz',
-        'libs\\imgui', 'libs\\imgui-node-editor', 'libs\\ImGuizmo', 'libs\\inc', 
-        'EvoVulkan\\Core\\libs'
-    ]
-    
-    repo_path = '../Engine'
+    repo_path = '../../Engine'
     
     print('collect files...')
     
@@ -65,8 +80,9 @@ def main() -> bool:
 
     headers = ['file', 'lines', 'empty', 'total']
 
-    table = columnar(table, headers, no_borders=True)
-    print(table)
+    if USE_COLUMNAR:
+      table = columnar(table, headers, no_borders=True)
+      print(table)
             
     print(f'Total files: {len(files)}')
     print(f'Total lines: {total}')

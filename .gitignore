@@ -28,3 +28,10 @@ Build
 /CMakeSettings.json
 /Android/app/src/main/assets
 /Android/local.properties
+.cache/
+**/#*#
+**/GPATH
+**/GRTAGS
+**/GTAGS
+venv
+.venv
