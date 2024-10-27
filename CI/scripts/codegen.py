@@ -1,8 +1,10 @@
 import sys, os, subprocess
 from glob import glob
-import clang.cindex
 
-import subprocess
+try:
+    import clang.cindex
+except ImportError:
+    print("Please install 'clang' package!")
 
 def normalize_path(path):
     """Нормализует слеши в путях для различных ОС."""
@@ -730,6 +732,9 @@ def main() -> bool:
 
 
 if __name__ == "__main__":
+    print("Start codegen.py... Codegen directory: ", codegen_directory)
+    print("Repo path: ", get_repo_path())
+
     lib_path = os.path.join(os.path.dirname(clang.cindex.__file__), 'native')
     is_unix = sys.platform.startswith('linux') or sys.platform.startswith('darwin')
     lib_file = ''
@@ -740,8 +745,6 @@ if __name__ == "__main__":
         lib_file = os.path.join(lib_path, 'libclang.dll')
     
     lib_file = os.path.join(lib_path, lib_file)
-    clang.cindex.Config.set_library_file(lib_file)
-    print(f'Using libclang: {lib_file}')
 
     # check file exists
     if not os.path.exists(lib_file):
@@ -749,6 +752,9 @@ if __name__ == "__main__":
         if is_unix:
             print("Try to install libclang, e.g. 'apt-get install libclang-dev' on Ubuntu.")
         sys.exit(1)
+
+    print(f'Using libclang: {lib_file}')
+    clang.cindex.Config.set_library_file(lib_file)
 
     if not main():
         input()
