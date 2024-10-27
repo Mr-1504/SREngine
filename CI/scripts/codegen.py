@@ -735,7 +735,7 @@ if __name__ == "__main__":
     lib_file = ''
 
     if is_unix:
-        lib_file = os.path.join(lib_path, 'libclang.so')
+        lib_file = "/usr/lib/libclang.so" #os.path.join(lib_path, 'libclang.so')
     else:
         lib_file = os.path.join(lib_path, 'libclang.dll')
     
@@ -746,6 +746,8 @@ if __name__ == "__main__":
     # check file exists
     if not os.path.exists(lib_file):
         print(f'libclang not found: {lib_file}')
+        if is_unix:
+            print("Try to install libclang, e.g. 'apt-get install libclang-dev' on Ubuntu.")
         sys.exit(1)
 
     if not main():

@@ -1,22 +1,46 @@
-# Проверяем, установлен ли Python
-
-set(SR_PYTHON_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/python")
+# We need to ensure that Python is installed as well as the required packages.
 
 if (UNIX)
-    find_program(PYTHON_EXECUTABLE python)
+    find_program(SR_PYTHON_EXECUTABLE python)
 
-    if (PYTHON_EXECUTABLE)
-        message(STATUS "Python executable found: ${PYTHON_EXECUTABLE}")
-    else()
-        message(FATAL_ERROR "Python executable not found. Please install Python.")
-    endif()
-
-    set(SR_PYTHON_EXECUTABLE "${PYTHON_EXECUTABLE}")
+#    if (PYTHON_EXECUTABLE)
+#       message(STATUS "InstallPython: Python executable found: ${PYTHON_EXECUTABLE}")
+#    else()
+#        message(FATAL_ERROR "InstallPython: Python executable not found. Please install Python.")
+#    endif()
+#
+#    message(STATUS "InstallPython: creating virtual environment at: ${PROJECT_SOURCE_DIR}/../")
+#
+#    execute_process(
+#            COMMAND "${PYTHON_EXECUTABLE} --version"
+#            RESULT_VARIABLE result
+#            OUTPUT_VARIABLE output
+#            ERROR_VARIABLE error_output
+#    )
+#
+#    message(STATUS ${result})
+#
+#    #execute_process(
+#    #    COMMAND "${PYTHON_EXECUTABLE} -m venv ${PROJECT_SOURCE_DIR}/../.venv"
+#    #    RESULT_VARIABLE result
+#    #    OUTPUT_VARIABLE output
+#    #    ERROR_VARIABLE error_output
+#    #)
+#
+#    message(STATUS ${result})
+#
+#    if (NOT result EQUAL "0")
+#        message(FATAL_ERROR "InstallPython: failed to create virtual environment! ${error_output}")
+#    endif()
+#
+#    set(SR_PYTHON_EXECUTABLE "${PROJECT_SOURCE_DIR}/../.venv/bin/python")
 elseif(EXISTS "${SR_PYTHON_INSTALL_DIR}/python.exe")
     set(SR_PYTHON_EXECUTABLE "${SR_PYTHON_INSTALL_DIR}/python.exe")
-    message(STATUS "Python found: ${SR_PYTHON_EXECUTABLE}")
+    message(STATUS "InstallPython: Python found: ${SR_PYTHON_EXECUTABLE}")
 elseif (NOT SR_PYTHON_EXECUTABLE)
-    message(STATUS "Python not found.")
+    message(STATUS "InstallPython: Python not found.")
+
+    set(SR_PYTHON_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/python")
 
     #set(SR_PYTHON_VERSION "3.13.0")
     #set(SR_PYTHON_ZIP "python-${SR_PYTHON_VERSION}-amd64.exe")
@@ -29,8 +53,8 @@ elseif (NOT SR_PYTHON_EXECUTABLE)
     #set(SR_PYTHON_INSTALLER "${CMAKE_CURRENT_BINARY_DIR}/python_installer.exe")
 
     #message(STATUS "Python version: ${SR_PYTHON_VERSION}")
-    message(STATUS "Python URL: ${SR_PYTHON_URL}")
-    message(STATUS "Python install dir: ${SR_PYTHON_INSTALL_DIR}")
+    message(STATUS "InstallPython: Python URL: ${SR_PYTHON_URL}")
+    message(STATUS "InstallPython: Python install dir: ${SR_PYTHON_INSTALL_DIR}")
     #message(STATUS "Python installer: ${SR_PYTHON_INSTALLER}")
 
     #if(NOT EXISTS ${SR_PYTHON_INSTALLER})
@@ -38,7 +62,7 @@ elseif (NOT SR_PYTHON_EXECUTABLE)
     #    file(DOWNLOAD ${SR_PYTHON_URL} "${SR_PYTHON_INSTALLER}")
     #endif()
 
-    message(STATUS "Clone python...")
+    message(STATUS "InstallPython: cloning python...")
 
     execute_process(
         COMMAND git clone ${SR_PYTHON_URL} ${SR_PYTHON_INSTALL_DIR}
@@ -46,7 +70,7 @@ elseif (NOT SR_PYTHON_EXECUTABLE)
     )
 
     if (NOT EXISTS "${SR_PYTHON_INSTALL_DIR}/python.exe")
-        message(FATAL_ERROR "Failed to clone Python!")
+        message(FATAL_ERROR "InstallPython: failed to clone Python!")
     endif()
 
     set(SR_PYTHON_EXECUTABLE "${SR_PYTHON_INSTALL_DIR}/python.exe")
@@ -94,21 +118,23 @@ elseif (NOT SR_PYTHON_EXECUTABLE)
 #    endif ()
 endif()
 
-if (SR_PYTHON_EXECUTABLE)
-    message(STATUS "Python executable: ${SR_PYTHON_EXECUTABLE}")
-else()
-    message(FATAL_ERROR "Python could not be installed!")
+if (NOT UNIX)
+    if (SR_PYTHON_EXECUTABLE)
+        message(STATUS "InstallPython: Python executable: ${SR_PYTHON_EXECUTABLE}")
+    else()
+        message(FATAL_ERROR "InstallPython: Python could not be installed!")
+    endif()
+
+    message(STATUS "InstallPython: installing Python packages...")
+
+    execute_process(
+        COMMAND "${SR_PYTHON_EXECUTABLE}" -m pip install clang libclang
+        RESULT_VARIABLE result
+        OUTPUT_VARIABLE output
+        ERROR_VARIABLE error_output
+    )
+
+    if (NOT result EQUAL "0")
+        message(FATAL_ERROR "InstallPython: failed to install Python packages! ${error_output}")
+    endif ()
 endif()
-
-message(STATUS "Installing Python packages...")
-
-execute_process(
-    COMMAND "${SR_PYTHON_EXECUTABLE}" -m pip install clang libclang
-    RESULT_VARIABLE result
-    OUTPUT_VARIABLE output
-    ERROR_VARIABLE error_output
-)
-
-if (NOT result EQUAL "0")
-    message(FATAL_ERROR "Failed to install Python packages! ${error_output}")
-endif ()
