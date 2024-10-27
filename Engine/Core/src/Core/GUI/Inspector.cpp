@@ -140,7 +140,7 @@ namespace SR_CORE_GUI_NS {
                     m_isUsed = false;
                 }
 
-                SR_SAFE_DELETE_PTR(pOldTransform)
+                pOldTransform.AutoFree();
             }
 
             DrawComponents(dynamic_cast<SR_UTILS_NS::IComponentable*>(m_sceneObject.Get()));

@@ -14,6 +14,7 @@
 #include <Utils/Common/Features.h>
 #include <Utils/ECS/ComponentManager.h>
 #include <Utils/Localization/LocalizationManager.h>
+#include <Utils/Serialization/SRASerialization.h>
 
 #include <Graphics/GUI/WidgetManager.h>
 #include <Graphics/Render/RenderScene.h>
@@ -48,6 +49,37 @@ namespace SR_CORE_NS {
 
     bool Engine::Create() {
         SR_INFO("Engine::Create() : registering all resources...");
+
+        static SR_UTILS_NS::Subscription s;
+
+        s = SR_UTILS_NS::Input::Instance().Subscribe(SR_UTILS_NS::StringAtom("Down"), [this](const SR_UTILS_NS::SubscriptionMessage& msg) {
+            if (msg.GetInt("KeyCode") == static_cast<uint64_t>(SR_UTILS_NS::KeyCode::L)) {
+                SR_UTILS_NS::SRASerializer serializer;
+                serializer.SetUseTabs(false);
+                SR_UTILS_NS::Serialization::Save(serializer, GetScene()->GetRootSceneObjects(), SR_UTILS_NS::SerializationId::Create("SceneObjects"));
+                const SR_UTILS_NS::Path path = SR_UTILS_NS::ResourceManager::Instance().GetCachePath().Concat("scene.sra");
+                if (!serializer.SaveToFile(path)) {
+                    SR_ERROR("Engine::Create() : failed to save scene!");
+                }
+
+                SR_UTILS_NS::SRADeserializer deserializer;
+                deserializer.SetUseTabs(false);
+                if (!deserializer.LoadFromFile(path)) {
+                    SR_ERROR("Engine::Create() : failed to load scene!");
+                }
+
+                auto&& copyPath = path.ConcatExt("copy.sra");
+                if (!deserializer.SaveToFile(copyPath)) {
+                    SR_ERROR("Engine::Create() : failed to save scene!");
+                }
+
+                if (path.GetFileHash() == copyPath.GetFileHash()) {
+                    SR_ERROR("Engine::Create() : files are not equal!");
+                }
+
+                s.Reset();
+            }
+        });
 
         if (!Resources::RegisterResources(GetThis())) {
             SR_ERROR("Engine::Create() : failed to register engine resources!");

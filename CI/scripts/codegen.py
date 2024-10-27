@@ -2,14 +2,63 @@ import sys, os, subprocess
 from glob import glob
 import clang.cindex
 
+import subprocess
+
 def normalize_path(path):
     """Нормализует слеши в путях для различных ОС."""
     return os.path.normpath(path)
+
+def get_repo_path():
+    return normalize_path('../')
+
+codegen_directory = sys.argv[1]
+
+if not codegen_directory:
+    raise Exception('Codegen directory is not set')
+
+includes = [
+    f'{get_repo_path()}/Engine/Core/inc',
+    f'{get_repo_path()}/Engine/Core/libs',
+    f'{get_repo_path()}/Engine/Core/libs/Utils/inc',
+    f'{get_repo_path()}/Engine/Core/libs/Utils/libs',
+    f'{get_repo_path()}/Engine/Core/libs/Utils/libs/openssl/include',
+    f'{get_repo_path()}/Engine/Core/libs/Utils/libs/litehtml/include',
+    f'{get_repo_path()}/Engine/Core/libs/Utils/libs/cppcoro/include',
+    f'{get_repo_path()}/Engine/Core/libs/Utils/libs/assimp/include',
+    f'{get_repo_path()}/Engine/Core/libs/Utils/libs/fmt/include',
+    f'{get_repo_path()}/Engine/Core/libs/Scripting/inc',
+    f'{get_repo_path()}/Engine/Core/libs/Scripting/libs',
+    f'{get_repo_path()}/Engine/Core/libs/Scripting/libs/EvoScript/Core/inc',
+    f'{get_repo_path()}/Engine/Core/libs/Audio/inc',
+    f'{get_repo_path()}/Engine/Core/libs/Audio/libs',
+    f'{get_repo_path()}/Engine/Core/libs/Audio/libs/libmodplug/src',
+    f'{get_repo_path()}/Engine/Core/libs/Physics/inc',
+    f'{get_repo_path()}/Engine/Core/libs/Physics/libs',
+    f'{get_repo_path()}/Engine/Core/libs/Graphics/inc',
+    f'{get_repo_path()}/Engine/Core/libs/Graphics/libs',
+    f'{get_repo_path()}/Engine/Core/libs/Graphics/libs/imgui',
+    f'{get_repo_path()}/Engine/Core/libs/Graphics/libs/EvoVulkan/Core/inc',
+    f'{codegen_directory}/Engine/Core/libs/Utils/libs/assimp/include',
+    f'{codegen_directory}',
+]
+
+include_args = [f'-I{ os.path.abspath(normalize_path(inc))}' for inc in includes]
+
+def preprocess_cpp(source, output):
+    command = f"clang++ -E {source} -o {output} -fpermissive {' '.join(include_args)} -D WIN32"
+
+    # Запускаем команду
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+    # Проверяем наличие ошибок
+    if result.returncode != 0:
+        raise Exception(f'Failed to preprocess file: {source}, error: {result.stderr}, command: {command}')
 
 
 class Property:
     def __init__(self, name, type_name):
         self.name = name
+        self.display_name = name
         self.type_name = type_name
         self.default_value = None
 
@@ -93,6 +142,117 @@ def extract_property_type(variable_node):
         return variable_node.type.spelling
     return 'Unknown'
 
+#def extract_property_default_value(cursor):
+#    # Проверяем детей узла, чтобы найти выражение инициализации
+#    for child in cursor.get_children():
+#        if child.kind == clang.cindex.CursorKind.CALL_EXPR:
+#            tokens = list(child.get_tokens())
+#            if tokens:
+#                # Собираем токены и исключаем '=' в начале, если он присутствует
+#                tokens_str = " ".join([token.spelling for token in tokens])
+#                if tokens_str.startswith('=') or tokens_str.startswith('{'):
+#                    tokens_str = tokens_str[1:].strip()
+#
+#                return tokens_str
+#        if child.kind == clang.cindex.CursorKind.UNEXPOSED_EXPR:
+#            tokens = list(child.get_tokens())
+#            if tokens:
+#                # Собираем токены, начиная со следующего после '=', если он есть
+#                tokens_str = " ".join([token.spelling for token in tokens])
+#
+#                # Убираем знак '=' или '{', если он есть
+#                if tokens_str.startswith('=') or tokens_str.startswith('{'):
+#                    tokens_str = tokens_str[1:].strip()
+#
+#                return tokens_str
+#    return None  # Если значение по умолчанию не найдено
+
+#def extract_property_default_value(cursor):
+#    for child in cursor.get_children():
+#        default_value = extract_property_default_value(child)
+#        if default_value:
+#            return default_value
+#
+#    tokens = list(cursor.get_tokens())
+#    if tokens:
+#        tokens_str = [token.spelling for token in tokens]
+#        if '=' in tokens_str:
+#            eq_index = tokens_str.index('=')
+#            default_value_tokens = tokens_str[eq_index + 1:]
+#            default_value = " ".join(default_value_tokens).strip()
+#            return default_value
+#        else :
+#            print(f'Error: default value not found for {cursor.spelling}')
+
+def debug_extract_property_default_value(cursor, deep=0):
+    tokens = list(cursor.get_tokens())
+    token_strs = [token.spelling for token in tokens]
+
+    print(f'[{deep}] Extract default value for {cursor.kind} \"{cursor.spelling}\" \"{cursor.type.spelling}\", {token_strs}')
+
+    for child in cursor.get_children():
+        debug_extract_property_default_value(child, deep + 1)
+
+def extract_property_default_value(cursor):
+    debug_extract_property_default_value(cursor)
+
+    if cursor.kind != clang.cindex.CursorKind.FIELD_DECL:
+        return None
+
+    namespace_stack = []
+    tokens = list(cursor.get_tokens())
+    token_strs = [token.spelling for token in tokens]
+
+    for child in cursor.get_children():
+        tokens = list(child.get_tokens())
+        if child.kind == clang.cindex.CursorKind.CXX_BOOL_LITERAL_EXPR:
+            return tokens[0].spelling
+        if child.kind == clang.cindex.CursorKind.INTEGER_LITERAL:
+            return tokens[0].spelling
+        if child.kind == clang.cindex.CursorKind.FLOATING_LITERAL:
+            return tokens[0].spelling
+        if child.kind == clang.cindex.CursorKind.STRING_LITERAL:
+            return tokens[0].spelling
+        if child.kind == clang.cindex.CursorKind.CHARACTER_LITERAL:
+            return tokens[0].spelling
+        if child.kind == clang.cindex.CursorKind.NAMESPACE_REF:
+            namespace_stack.append(child.spelling)
+            continue
+        if child.kind == clang.cindex.CursorKind.CALL_EXPR:
+            if len(token_strs) == 0:
+                namespace = '::'.join(namespace_stack)
+                #print(f'Extract default value for {child.kind} \"{child.spelling}\" \"{child.type.spelling}\", {token_strs}')
+                if len(namespace):
+                    return f'{namespace}::{child.type.spelling}::{child.spelling}()'
+                return f'{child.type.spelling}::{child.spelling}()'
+            else:
+                expression = ''
+                for token in tokens:
+                    expression += token.spelling
+                return expression
+
+    return None
+
+#def extract_property_default_value(cursor):
+#    # Извлекаем все токены узла, включая '=' и вызовы функций
+#    tokens = list(cursor.get_tokens())
+#    if tokens:
+#        # Ищем '=', чтобы разделить имя переменной и её значение
+#        token_strs = [token.spelling for token in tokens]
+#
+#        if '=' in token_strs:
+#            # Находим индекс '='
+#            eq_index = token_strs.index('=')
+#            # Все, что после '=', это значение по умолчанию
+#            default_value_tokens = token_strs[eq_index + 1:]
+#
+#            # Соединяем их в строку
+#            default_value = " ".join(default_value_tokens).strip()
+#
+#            # Возвращаем строку без лишних пробелов и символов
+#            return default_value
+#    return None  # Если значение по умолчанию не найдено
+
 def has_static_function(class_node, function_name):
     """Проверяет наличие статической функции в классе."""
     for node in class_node.get_children():
@@ -112,6 +272,13 @@ def is_class_inherited_from(class_node, class_name):
             if node.spelling == class_name:
                 return True
     return False
+
+def make_pretty_property_name(name):
+    if name.startswith('m_'):
+        name = name[2:]
+    if name.startswith('_'):
+        name = name[1:]
+    return name
 
 
 def parse_tree(deep, parent_node, code_structure, namespaces):
@@ -152,7 +319,7 @@ def parse_tree(deep, parent_node, code_structure, namespaces):
                                                 break
                                         break
 
-                    print(f'Found enum: {name} Variant: {variant} Count: {count}')
+                    #print(f'Found enum: {name} Variant: {variant} Count: {count}')
                     if all_found == 3:
                         break
 
@@ -174,10 +341,14 @@ def parse_tree(deep, parent_node, code_structure, namespaces):
 
                 if child.kind == clang.cindex.CursorKind.FIELD_DECL and is_property_comment(child):
                     variable_name = child.spelling
-                    #class_obj.add_variable(variable_name)
-                    variable_name = child.spelling
                     variable_type = extract_property_type(child)
                     property_obj = Property(variable_name, variable_type)
+                    print(f'Found property: {property_obj.name}, Type: {property_obj.type_name}')
+                    # remove m_ and _ prefix from name
+                    property_obj.display_name = make_pretty_property_name(property_obj.name)
+                    property_obj.default_value = extract_property_default_value(child)
+                    if property_obj.default_value:
+                        print(f'Found default value: {property_obj.default_value}')
                     class_obj.add_variable(property_obj)
 
                 if child.kind == clang.cindex.CursorKind.CXX_METHOD and is_method_comment(child):
@@ -206,26 +377,19 @@ def parse_tree(deep, parent_node, code_structure, namespaces):
 
 
     except Exception as e:
-        print(f'Error: {e}')
+        if str(e).startswith('Unknown template argument kind'):
+            return
+        print(f'Error parse_tree: {e}')
 
 
-def get_repo_path():
-    return normalize_path('../')
+
 
 def parse_header_file(file_path):
     code_structure = CodeStructure()
 
-    includes = [f'{get_repo_path()}/Engine/Core/inc',
-                f'{get_repo_path()}/Engine/Core/libs/Utils/inc',
-                f'{get_repo_path()}/Engine/Core/libs/Scripts/inc',
-                f'{get_repo_path()}/Engine/Core/libs/Audio/inc',
-                f'{get_repo_path()}/Engine/Core/libs/Physics/inc',
-                f'{get_repo_path()}/Engine/Core/libs/Graphics/inc',
-    ]
-
     # Передаем каждый путь как отдельный аргумент
-    args = [f'-I{ os.path.abspath(normalize_path(inc))}' for inc in includes]
-    args += ['-fsyntax-only', '-x', 'c++']
+    args = include_args
+    args += ['-fsyntax-only', '-x', 'c++', '-std=c++20']
 
     index = clang.cindex.Index.create()
     translation_unit = index.parse(file_path, args=args)
@@ -233,6 +397,8 @@ def parse_header_file(file_path):
     print('check diagnostics...')
     #if translation_unit.diagnostics:
     #    for diagnostic in translation_unit.diagnostics:
+    #        if 'warning: ' in str(diagnostic):
+    #            continue
     #        print(diagnostic)
 
     # Проходим по узлам файла
@@ -284,9 +450,12 @@ def generate_class_meta_save(f, class_obj, tabs):
     f.write('\t' * tabs + f'auto&& value = static_cast<const {class_name}&>(obj);\n\n')
 
     for prop in class_obj.variables:
-        f.write('\t' * tabs + f'if ((serializer.IsWriteDefaults() || !SR_UTILS_NS::IsDefault(value.{prop.name}))) {{\n')
-        f.write('\t' * (tabs + 1) + f'static constexpr SR_UTILS_NS::SerializationId keyName_{prop.name} = SR_UTILS_NS::SerializationId::Create("{prop.name}");\n')
-        f.write('\t' * (tabs + 1) + f'SR_UTILS_NS::Serialization::Save(serializer, value.{prop.name}, keyName_{prop.name});\n')
+        if prop.default_value:
+            f.write('\t' * tabs + f'if ((serializer.IsWriteDefaults() || value.{prop.name} != GetDefault_{prop.display_name}())) {{\n')
+        else:
+            f.write('\t' * tabs + f'if ((serializer.IsWriteDefaults() || !SR_UTILS_NS::IsDefault(value.{prop.name}))) {{\n')
+        f.write('\t' * (tabs + 1) + f'static constexpr SR_UTILS_NS::SerializationId keyName_{prop.display_name} = SR_UTILS_NS::SerializationId::Create("{prop.display_name}");\n')
+        f.write('\t' * (tabs + 1) + f'SR_UTILS_NS::Serialization::Save(serializer, value.{prop.name}, keyName_{prop.display_name});\n')
         f.write('\t' * tabs + f'}}\n')
 
     tabs -= 1
@@ -307,8 +476,8 @@ def generate_class_meta_load(f, class_obj, tabs):
 
     for prop in class_obj.variables:
         f.write('\t' * tabs + f'{{\n')
-        f.write('\t' * (tabs + 1) + f'static constexpr SR_UTILS_NS::SerializationId keyName_{prop.name} = SR_UTILS_NS::SerializationId::Create("{prop.name}");\n')
-        f.write('\t' * (tabs + 1) + f'SR_UTILS_NS::Serialization::Load(deserializer, value.{prop.name}, keyName_{prop.name});\n')
+        f.write('\t' * (tabs + 1) + f'static constexpr SR_UTILS_NS::SerializationId keyName_{prop.display_name} = SR_UTILS_NS::SerializationId::Create("{prop.display_name}");\n')
+        f.write('\t' * (tabs + 1) + f'SR_UTILS_NS::Serialization::Load(deserializer, value.{prop.name}, keyName_{prop.display_name});\n')
         f.write('\t' * tabs + f'}}\n')
 
     tabs -= 1
@@ -347,9 +516,15 @@ def generate_class_meta(f, class_structures, class_obj, tabs):
     f.write('\t' * tabs + '}\n\n')
 
     for prop in class_obj.variables:
-        f.write('\t' * tabs + f'// {prop}\n')
-        f.write('\t' * tabs + f'const {prop.type_name}& Get_{prop.name}({class_name}* pClass) {{ return pClass->{prop.name}; }}\n')
-        f.write('\t' * tabs + f'void Set_{prop.name}({class_name}* pClass, const {prop.type_name}& value) {{ pClass->{prop.name} = value; }}\n\n')
+        if not prop.default_value:
+            continue
+        f.write('\t' * tabs + f'// default value for \"{prop}\"\n')
+        f.write('\t' * tabs + f'static auto GetDefault_{prop.display_name}() {{ return {prop.default_value}; }}\n\n')
+
+    #for prop in class_obj.variables:
+    #    f.write('\t' * tabs + f'// {prop}\n')
+    #    f.write('\t' * tabs + f'const {prop.type_name}& Get_{prop.name}({class_name}* pClass) {{ return pClass->{prop.name}; }}\n')
+    #    f.write('\t' * tabs + f'void Set_{prop.name}({class_name}* pClass, const {prop.type_name}& value) {{ pClass->{prop.name} = value; }}\n\n')
 
     generate_class_meta_get_base_metas(f, class_structures, class_obj, tabs)
 
@@ -373,7 +548,7 @@ def generate_class_meta(f, class_structures, class_obj, tabs):
     f.write('\t' * tabs + '}\n\n')
     pass
 
-def generate_classes_code(codegen_directory, class_structures):
+def generate_classes_code(codegen_dir, class_structures):
     file_map = {}
     for class_obj in class_structures:
         if not class_obj.path:
@@ -393,14 +568,14 @@ def generate_classes_code(codegen_directory, class_structures):
         else:
             file_map[file_name].append(class_obj)
 
-    if not os.path.exists(codegen_directory):
-        os.makedirs(codegen_directory)
+    if not os.path.exists(codegen_dir):
+        os.makedirs(codegen_dir)
 
-    if not os.path.exists(codegen_directory):
-        raise Exception(f'Failed to create directory: {codegen_directory}')
+    if not os.path.exists(codegen_dir):
+        raise Exception(f'Failed to create directory: {codegen_dir}')
 
     for file_name, class_objs in file_map.items():
-        full_path = os.path.normpath(f'{codegen_directory}/{file_name}.generated.hpp')
+        full_path = os.path.normpath(f'{codegen_dir}/{file_name}.generated.hpp')
         with open(full_path, 'w', encoding='utf8') as f:
             f.write('// This file is generated by SpaRcle Studio code-generator ^_^\n\n')
             f.write(f'#ifndef SR_CODEGEN_{file_name.upper()}_HPP\n')
@@ -473,20 +648,26 @@ def main() -> bool:
 
     print('create cxx file with all includes...')
 
-    codegen_directory = sys.argv[1:][0]
-    cached_file = os.path.abspath(normalize_path(f'{codegen_directory}/Codegen/Codegen/AllIncludes.cxx'))
+    cached_file_raw = os.path.abspath(normalize_path(f'{codegen_directory}/Codegen/Codegen/AllIncludesRaw.cxx'))
+
+
+    vulkan_h = os.path.abspath(normalize_path(f'{codegen_directory}/vulkan/vulkan.h'))
+    os.makedirs(os.path.dirname(vulkan_h), exist_ok=True)
+
+    with open(vulkan_h, 'w', encoding='utf8') as f:
+        f.write('// This file is generated by SpaRcle Studio code-generator ^_^\n\n')
 
     # Получаем директорию из пути к файлу
-    directory = os.path.dirname(cached_file)
+    directory = os.path.dirname(cached_file_raw)
 
     # Проверяем, существует ли директория, и создаем ее, если нет
     if not os.path.exists(directory):
         os.makedirs(directory)  # Создает директории рекурсивно
 
-    with open(f'{cached_file}', 'w', encoding='utf8') as f:
+    with open(f'{cached_file_raw}', 'w', encoding='utf8') as f:
         f.write('// This file is generated by SpaRcle Studio code-generator ^_^\n\n')
         std_template = ('namespace std {\n'
-                        '\ttemplate <typename T> struct vector { };\n'
+                        '\ttemplate <class _Ty, class _Alloc = allocator<_Ty>> class vector { };\n'
                         '\ttemplate <typename T> struct list { };\n'
                         '\ttemplate <typename T> struct deque { };\n'
                         '\ttemplate <typename T> struct set { };\n'
@@ -499,31 +680,43 @@ def main() -> bool:
                         '\ttemplate <typename T> struct unordered_multiset { };\n'
                         '}\n\n'
                         )
-        f.write(std_template)
+        #f.write(std_template)
+        f.write(
+            '#define WIN32\n'
+            '\n'
+            '#include <vector>\n'
+            '#include <set>\n'
+            '#include <map>\n'
+            '#include <string>\n'
+            '#include <string_view>\n'
+        )
         #std_include = ('#include <vector>\n\n')
         #f.write(std_include)
         for file in collected_files:
             f.write(f'#include "{os.path.abspath(file)}"\n')
+
+    cached_file = os.path.abspath(normalize_path(f'{codegen_directory}/Codegen/Codegen/AllIncludes.cxx'))
+
+    #preprocess_cpp(cached_file_raw, cached_file)
+    #if not os.path.exists(cached_file):
+    #    raise Exception(f'Failed to create file: {cached_file}')
+    os.remove(cached_file)
+    os.rename(cached_file_raw, cached_file)
 
     print(f'Parsing header file: {cached_file}\n')
 
     code_structures: CodeStructure = parse_header_file(cached_file)
     if code_structures.classes:
         print(f'File: {cached_file}\n')
-        for class_obj in code_structures.classes:
-            print(class_obj.to_string(0))
+        #for class_obj in code_structures.classes:
+        #    print(class_obj.to_string(0))
 
-    codegen_directory = sys.argv[1:][0]
-    if not codegen_directory:
-        print('codegen_directory is not set!')
-        return False
-
-    codegen_directory = normalize_path(codegen_directory + '/Codegen/Codegen') # double "Codegen" for cmake pretty include
-    print(f'Codegen directory: {codegen_directory}')
+    codegen_dir = normalize_path(codegen_directory + '/Codegen/Codegen') # double "Codegen" for cmake pretty include
+    print(f'Codegen directory: {codegen_dir}')
 
     print('Remove old generated files...')
     # delete old files
-    for file in glob(f'{codegen_directory}/*.hpp'):
+    for file in glob(f'{codegen_dir}/*.hpp'):
         os.remove(file)
 
     print('Generate new files...')
@@ -531,7 +724,7 @@ def main() -> bool:
     print('Count of classes:', len(code_structures.classes))
     print('Count of enums:', len(code_structures.enums))
 
-    generate_classes_code(codegen_directory, code_structures.classes)
+    generate_classes_code(codegen_dir, code_structures.classes)
 
     return True
 

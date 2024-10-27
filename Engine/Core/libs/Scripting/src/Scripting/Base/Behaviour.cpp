@@ -9,6 +9,8 @@
 #include <Scripting/Base/Behaviour.h>
 #include <Scripting/Impl/EvoBehaviour.h>
 
+#include <Codegen/Behaviour.generated.hpp>
+
 namespace SR_SCRIPTING_NS {
     IRawBehaviour* IRawBehaviour::Load(SR_UTILS_NS::Path path) {
         SR_GLOBAL_LOCK
