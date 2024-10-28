@@ -1,39 +1,37 @@
 # We need to ensure that Python is installed as well as the required packages.
 
 if (UNIX)
-    find_program(SR_PYTHON_EXECUTABLE python)
+    find_program(PYTHON_EXECUTABLE python)
 
-#    if (PYTHON_EXECUTABLE)
-#       message(STATUS "InstallPython: Python executable found: ${PYTHON_EXECUTABLE}")
-#    else()
-#        message(FATAL_ERROR "InstallPython: Python executable not found. Please install Python.")
-#    endif()
-#
-#    message(STATUS "InstallPython: creating virtual environment at: ${PROJECT_SOURCE_DIR}/../")
-#
-#    execute_process(
-#            COMMAND "${PYTHON_EXECUTABLE} --version"
-#            RESULT_VARIABLE result
-#            OUTPUT_VARIABLE output
-#            ERROR_VARIABLE error_output
-#    )
-#
-#    message(STATUS ${result})
-#
-#    #execute_process(
-#    #    COMMAND "${PYTHON_EXECUTABLE} -m venv ${PROJECT_SOURCE_DIR}/../.venv"
-#    #    RESULT_VARIABLE result
-#    #    OUTPUT_VARIABLE output
-#    #    ERROR_VARIABLE error_output
-#    #)
-#
-#    message(STATUS ${result})
-#
-#    if (NOT result EQUAL "0")
-#        message(FATAL_ERROR "InstallPython: failed to create virtual environment! ${error_output}")
-#    endif()
-#
-#    set(SR_PYTHON_EXECUTABLE "${PROJECT_SOURCE_DIR}/../.venv/bin/python")
+    if (PYTHON_EXECUTABLE)
+       message(STATUS "InstallPython: Python executable found: ${PYTHON_EXECUTABLE}")
+    else()
+        message(FATAL_ERROR "InstallPython: Python executable not found. Please install Python.")
+    endif()
+
+    message(STATUS "InstallPython: creating virtual environment at: ${PROJECT_SOURCE_DIR}/../")
+
+    execute_process(
+        COMMAND ${PYTHON_EXECUTABLE} -m venv ${PROJECT_SOURCE_DIR}/../.venv
+        RESULT_VARIABLE result
+        OUTPUT_VARIABLE output
+        ERROR_VARIABLE error_output
+    )
+
+    if (NOT result EQUAL "0")
+        message(FATAL_ERROR "InstallPython: failed to create virtual environment! ${error_output}")
+    endif()
+
+    set(SR_PYTHON_EXECUTABLE "${PROJECT_SOURCE_DIR}/../.venv/bin/python")
+
+    message(STATUS "InstallPython: installing clang and libclang...")
+
+    execute_process(
+        COMMAND ${SR_PYTHON_EXECUTABLE} -m pip install clang libclang
+        RESULT_VARIABLE result
+        OUTPUT_VARIABLE output
+        ERROR_VARIABLE error_output
+    )
 elseif(EXISTS "${SR_PYTHON_INSTALL_DIR}/python.exe")
     set(SR_PYTHON_EXECUTABLE "${SR_PYTHON_INSTALL_DIR}/python.exe")
     message(STATUS "InstallPython: Python found: ${SR_PYTHON_EXECUTABLE}")
