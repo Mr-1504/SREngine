@@ -370,7 +370,8 @@ def parse_tree(deep, parent_node, code_structure, namespaces):
         new_namespace = namespaces
         # Проверяем, является ли текущий узел пространством имен
         if parent_node.kind == clang.cindex.CursorKind.NAMESPACE:
-            new_namespace = namespaces + [parent_node.spelling]
+            if not parent_node.spelling == 'std':
+                new_namespace = namespaces + [parent_node.spelling]
 
         # Рекурсивный обход других узлов
         for child in parent_node.get_children():
