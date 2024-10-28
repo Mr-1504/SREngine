@@ -68,6 +68,13 @@ namespace SR_CORE_NS {
                     SR_ERROR("Engine::Create() : failed to load scene!");
                 }
 
+                for (auto&& pSceneObject : GetScene()->GetRootSceneObjects()) {
+                    pSceneObject->Destroy();
+                }
+
+                std::vector<SR_HTYPES_NS::SharedPtr<SR_UTILS_NS::SceneObject>> sceneObjects;
+                SR_UTILS_NS::Serialization::Load(deserializer, sceneObjects, SR_UTILS_NS::SerializationId::Create("SceneObjects"));
+
                 auto&& copyPath = path.ConcatExt("copy.sra");
                 if (!deserializer.SaveToFile(copyPath)) {
                     SR_ERROR("Engine::Create() : failed to save scene!");

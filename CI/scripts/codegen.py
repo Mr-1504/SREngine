@@ -538,6 +538,9 @@ def generate_class_meta(f, class_structures, class_obj, tabs):
     f.write('\t' * (tabs + 1) + f'return {class_name}::GetClassStaticName();\n')
     f.write('\t' * tabs + '}\n\n')
 
+    f.write('\t' * (tabs - 1) + f'private:\n')
+    f.write('\t' * tabs + f'static inline const bool SR_CODEGEN_REGISTER_FACTORY = SR_UTILS_NS::Factory::Instance().Register<{class_name}>();\n\n')
+
     tabs -= 1
     f.write('\t' * tabs + '};\n\n')
 
