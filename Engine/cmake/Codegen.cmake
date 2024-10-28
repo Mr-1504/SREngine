@@ -1,4 +1,6 @@
-set(SR_CODEGEN_SCRIPT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../CI/scripts/codegen.py")
+set(SR_CODEGEN_SCRIPT_PATH "${PROJECT_SOURCE_DIR}/../CI/scripts/codegen.py")
+
+macro(SRCodegen)
 
 message(STATUS "Running codegen script: ${SR_CODEGEN_SCRIPT_PATH}")
 
@@ -9,8 +11,14 @@ execute_process(
     ERROR_VARIABLE error_output
 )
 
-if (result EQUAL 0)
+message(STATUS "Codegen result: ${result}")
+message(STATUS "Codegen output: ${output}")
+message(STATUS "Codegen error_output: ${error_output}")
+
+if (result EQUAL "0")
     message(STATUS "Codegen script executed successfully:\n${output}")
 else()
     message(FATAL_ERROR "Codegen script execution failed with error:\n${error_output}")
 endif()
+
+endmacro()

@@ -1,8 +1,10 @@
 import sys, os, subprocess
 from glob import glob
-import clang.cindex
 
-import subprocess
+try:
+    import clang.cindex
+except ImportError:
+    print("Please install 'clang' package!")
 
 def normalize_path(path):
     """Нормализует слеши в путях для различных ОС."""
@@ -368,7 +370,8 @@ def parse_tree(deep, parent_node, code_structure, namespaces):
         new_namespace = namespaces
         # Проверяем, является ли текущий узел пространством имен
         if parent_node.kind == clang.cindex.CursorKind.NAMESPACE:
-            new_namespace = namespaces + [parent_node.spelling]
+            if not parent_node.spelling == 'std':
+                new_namespace = namespaces + [parent_node.spelling]
 
         # Рекурсивный обход других узлов
         for child in parent_node.get_children():
@@ -730,23 +733,29 @@ def main() -> bool:
 
 
 if __name__ == "__main__":
+    print("Start codegen.py... Codegen directory: ", codegen_directory)
+    print("Repo path: ", get_repo_path())
+
     lib_path = os.path.join(os.path.dirname(clang.cindex.__file__), 'native')
     is_unix = sys.platform.startswith('linux') or sys.platform.startswith('darwin')
     lib_file = ''
 
     if is_unix:
-        lib_file = os.path.join(lib_path, 'libclang.so')
+        lib_file = "/usr/lib/libclang.so" #os.path.join(lib_path, 'libclang.so')
     else:
         lib_file = os.path.join(lib_path, 'libclang.dll')
     
     lib_file = os.path.join(lib_path, lib_file)
-    clang.cindex.Config.set_library_file(lib_file)
-    print(f'Using libclang: {lib_file}')
 
     # check file exists
     if not os.path.exists(lib_file):
         print(f'libclang not found: {lib_file}')
+        if is_unix:
+            print("Try to install libclang, e.g. 'apt-get install libclang-dev' on Ubuntu.")
         sys.exit(1)
+
+    print(f'Using libclang: {lib_file}')
+    clang.cindex.Config.set_library_file(lib_file)
 
     if not main():
         input()

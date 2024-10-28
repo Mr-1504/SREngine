@@ -68,6 +68,10 @@ if (NOT SR_ENGINE_FLATPAK_BUILD)
 endif()
 
 set(SR_COMMON_OPENSSL ON)
+set(SR_COMMON_GIT_METADATA ON)
+
+add_compile_definitions(SR_COMMON_GIT_METADATA)
+
 
 message(STATUS "CONFIGURING Utils -----------------")
 add_subdirectory(libs/Utils)
