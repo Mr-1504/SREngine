@@ -529,6 +529,8 @@ def generate_class_meta(f, class_structures, class_obj, tabs):
     #    f.write('\t' * tabs + f'const {prop.type_name}& Get_{prop.name}({class_name}* pClass) {{ return pClass->{prop.name}; }}\n')
     #    f.write('\t' * tabs + f'void Set_{prop.name}({class_name}* pClass, const {prop.type_name}& value) {{ pClass->{prop.name} = value; }}\n\n')
 
+    f.write('\t' * tabs + f'SR_NODISCARD virtual bool IsAbstract() const noexcept override {{ return std::is_abstract_v<{class_name}>; }}\n\n')
+
     generate_class_meta_get_base_metas(f, class_structures, class_obj, tabs)
 
     generate_class_meta_save(f, class_obj, tabs)
